@@ -46,15 +46,6 @@ public class LambdaFunctionHandlerTest {
 	}
 
 	@Test
-	public void handleRequest_failed_missing_host() throws Exception {
-		InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("missing_host.json");
-		handler.handleRequest(inputStream, outputStream, context);
-		String result = outputStream.toString();
-		assertThat(result, containsString("400"));
-		assertThat(result, containsString("missing header: Host"));
-	}
-
-	@Test
 	public void handleRequest_failed_missing_x_forwarded_for() throws Exception {
 		InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("missing_x_forwarded_for.json");
 		handler.handleRequest(inputStream, outputStream, context);
@@ -70,5 +61,14 @@ public class LambdaFunctionHandlerTest {
 		String result = outputStream.toString();
 		assertThat(result, containsString("400"));
 		assertThat(result, containsString("missing header: X-Forwarded-Port"));
+	}
+	
+	@Test
+	public void handleRequest_failed_missing_x_image_url() throws Exception {
+		InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("missing_x_image_url.json");
+		handler.handleRequest(inputStream, outputStream, context);
+		String result = outputStream.toString();
+		assertThat(result, containsString("400"));
+		assertThat(result, containsString("missing header: X-Image-Url"));
 	}
 }

@@ -1,6 +1,6 @@
 {
     "headers": {
-        "Host": "k5pqptkko9.execute-api.ap-southeast-1.amazonaws.com",
-        "X-Forwarded-Port": "443"
+        "X-Forwarded-Port": "443",
+        "X-Image-Url": "https://d23p6mqh85pir4.cloudfront.net/logo.png"
     }
 }

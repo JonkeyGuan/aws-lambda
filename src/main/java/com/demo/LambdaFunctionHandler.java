@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.net.InetAddress;
+import java.net.URL;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -15,15 +15,12 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 
-import sun.net.spi.nameservice.dns.DNSNameService;
-
-@SuppressWarnings("restriction")
 public class LambdaFunctionHandler implements RequestStreamHandler {
 
 	private final static String HEADERS = "headers";
 	private final static String X_FORWARD_FOR = "X-Forwarded-For";
-	private final static String HOST = "Host";
 	private final static String X_FORWARD_PORT = "X-Forwarded-Port";
+	private final static String X_IMAGE_URL = "X-Image-Url";
 	private final static String MISSING_HEADER = "missing header";
 
 	JSONParser parser = new JSONParser();
@@ -37,43 +34,43 @@ public class LambdaFunctionHandler implements RequestStreamHandler {
 
 		String responseCode = "200";
 		String errorMessage = "";
-		IpInfo ipInfo = null;
+		PageElements pageElements = null;
 		try {
-			ipInfo = extractIpInfo(inputStream);
+			pageElements = generatePageElements(inputStream, logger);
 		} catch (Exception e) {
 			errorMessage = e.getMessage();
 			logger.log(e.getMessage());
 			responseCode = "400";
 		}
 
-		JSONObject responseBody = new JSONObject();
+		String body = "";
 		if (!errorMessage.isEmpty()) {
-			responseBody.put("error", errorMessage);
+			body = errorMessage;
 		} else {
-			responseBody.put("message", Utils.populateResponse(ipInfo));
+			body = Utils.populateHtmlOutput(pageElements);
 		}
 
 		JSONObject responseJson = new JSONObject();
 		JSONObject headerJson = new JSONObject();
 		headerJson.put("Access-Control-Allow-Origin", "*");
+		headerJson.put("Content-Type", "text/html");
 		responseJson.put("isBase64Encoded", false);
 		responseJson.put("statusCode", responseCode);
 		responseJson.put("headers", headerJson);
-		responseJson.put("body", responseBody.toString());
+		responseJson.put("body", body);
 
-		OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8");
-		writer.write(responseJson.toJSONString());
-		writer.close();
+		outputStream.write(responseJson.toJSONString().getBytes());
 	}
 
-	private IpInfo extractIpInfo(InputStream inputStream) throws Exception {
-		IpInfo result = new IpInfo();
+	private PageElements generatePageElements(InputStream inputStream, LambdaLogger logger) throws Exception {
+		PageElements result = new PageElements();
 
 		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 		JSONObject inputInfo = null;
 
 		try {
 			inputInfo = (JSONObject) parser.parse(reader);
+			logger.log("input: " + inputInfo);
 		} catch (Exception e) {
 			throw e;
 		}
@@ -84,17 +81,10 @@ public class LambdaFunctionHandler implements RequestStreamHandler {
 
 		JSONObject headers = (JSONObject) inputInfo.get(HEADERS);
 		if (headers.containsKey(X_FORWARD_FOR)) {
-			result.setClientIp((String) headers.get(X_FORWARD_FOR));
+			String ips = (String) headers.get(X_FORWARD_FOR);
+			result.setClientIp(ips.split(",")[0]);
 		} else {
 			throw new Exception(MISSING_HEADER + ": " + X_FORWARD_FOR);
-		}
-
-		if (headers.containsKey(HOST)) {
-			String host = (String) headers.get(HOST);
-			InetAddress[] ipAddress = new DNSNameService().lookupAllHostAddr(host);
-			result.setRemoteIp(ipAddress[0].getHostAddress());
-		} else {
-			throw new Exception(MISSING_HEADER + ": " + HOST);
 		}
 
 		if (headers.containsKey(X_FORWARD_PORT)) {
@@ -103,6 +93,15 @@ public class LambdaFunctionHandler implements RequestStreamHandler {
 			throw new Exception(MISSING_HEADER + ": " + X_FORWARD_PORT);
 		}
 
+		if (headers.containsKey(X_IMAGE_URL)) {
+			result.setImageUrl((String) headers.get(X_IMAGE_URL));
+		} else {
+			throw new Exception(MISSING_HEADER + ": " + X_IMAGE_URL);
+		}
+		
+		InetAddress ip = InetAddress.getByName(new URL(result.getImageUrl()).getHost()); 
+		result.setRemoteIp(ip.getHostAddress());
+		
 		return result;
 	}
 }

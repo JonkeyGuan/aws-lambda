@@ -1,20 +1,30 @@
 package com.demo;
 
-public class IpInfo {
+public class PageElements {
 
 	private String clientIp;
 	private String remoteIp;
 	private String port;
+	private String imageUrl;
 
-	public IpInfo() {
+	public PageElements() {
 		super();
 	}
 
-	public IpInfo(String clientIp, String remoteIp, String port) {
+	public PageElements(String clientIp, String remoteIp, String port, String imageUrl) {
 		super();
 		this.clientIp = clientIp;
 		this.remoteIp = remoteIp;
 		this.port = port;
+		this.imageUrl = imageUrl;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 
 	public String getClientIp() {

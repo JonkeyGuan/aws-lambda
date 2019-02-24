@@ -1,6 +1,6 @@
 {
     "headers": {
         "X-Forwarded-For": "172.96.210.180, 216.137.44.18",
-        "Host": "k5pqptkko9.execute-api.ap-southeast-1.amazonaws.com"
+        "X-Image-Url": "https://d23p6mqh85pir4.cloudfront.net/logo.png"
     }
 }
