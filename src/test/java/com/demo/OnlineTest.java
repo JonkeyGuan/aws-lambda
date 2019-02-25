@@ -9,19 +9,19 @@ import com.jayway.restassured.http.ContentType;
 
 public class OnlineTest {
 
-	private static String CLOUD_FRONT_URL = "https://d2c69zm52r5kbu.cloudfront.net/default/lambda";
-	private static String API_GATEWAY_URL = "https://k5pqptkko9.execute-api.ap-southeast-1.amazonaws.com/default/lambda";
+	private static String CLOUD_FRONT_URL = "https://dpbv8kavqe9xj.cloudfront.net/default/myLambda";
+	private static String API_GATEWAY_URL = "https://lq8tbapsxi.execute-api.ap-southeast-1.amazonaws.com/default/myLambda";
 	private static String API_KEY_HEADER = "x-api-key";
-	private static String API_KEY_VALUE = "usKx6jPHJH8LcnW7RYXXCMNKXzHUdVgarIGE906b";
+	private static String API_KEY_VALUE = "xHDDKV6rle4mqHJ84uv2A2EdvMhN3KN5KxVQYo7a";
 	
     @Test
     public void cloudFrontTest() {
         given()
             .header(API_KEY_HEADER, API_KEY_VALUE).
         when()
-            .post(CLOUD_FRONT_URL).
+            .get(CLOUD_FRONT_URL).
         then()
-            .contentType(ContentType.JSON)
+            .contentType("text/html")
             .and()
             .statusCode(200)
             .and()
@@ -33,11 +33,14 @@ public class OnlineTest {
     @Test
     public void apiGatewayTest() {
         given()
-            .header(API_KEY_HEADER, API_KEY_VALUE).
+            .header(API_KEY_HEADER, API_KEY_VALUE)
+            .header("X-Forwarded-For", "172.96.210.180, 216.137.44.18")
+            .header("X-Forwarded-Port", "443")
+            .header("X-Image-Url", "https://d23p6mqh85pir4.cloudfront.net/logo.png").
         when()
-            .post(API_GATEWAY_URL).
+            .get(API_GATEWAY_URL).
         then()
-            .contentType(ContentType.JSON)
+            .contentType("text/html")
             .and()
             .statusCode(200)
             .and()
