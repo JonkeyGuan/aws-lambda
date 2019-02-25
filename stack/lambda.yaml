@@ -1,0 +1,201 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  Creates the Lambda functions and API Gateway endpoints
+
+Resources:
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Effect: "Allow"
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*:*"
+          PolicyName: "lambda"
+  
+  LambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        S3Bucket: "zefa-lambda-function" 
+        S3Key: "aws-lambda-0.0.1-SNAPSHOT-shaded.jar"
+      Description: "My Lambda Function"
+      FunctionName: QueryLambda
+      Handler: "com.demo.LambdaFunctionHandler::handleRequest"
+      MemorySize: 128
+      Role: !GetAtt "LambdaExecutionRole.Arn"
+      Runtime: "java8"
+      Timeout: 10
+
+  LambdaApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Lambda
+      Body:
+        swagger: 2.0
+        info:
+          version: 1.0.0
+          title: Lambda
+        paths:
+          /queryLambda:
+            get:
+              description: Request a query 
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              security:
+                - api_key: []
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                uri: 
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:apigateway:"
+                      - !Ref AWS::Region
+                      - ":lambda:path/2015-03-31/functions/"
+                      - !GetAtt LambdaFunction.Arn
+                      - "/invocations"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws_proxy"
+            options:
+              responses:
+                "200":
+                  description: "200 response"
+                  schema:
+                    $ref: "#/definitions/Empty"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                requestTemplates:
+                  application/json: "{\"statusCode\": 200}"
+                passthroughBehavior: "when_no_match"
+                type: "mock"
+
+        securityDefinitions:
+          api_key:
+            type: apiKey
+            name: x-api-key
+            in: header
+            
+        definitions:
+          Empty:
+            type: "object"
+            title: "Empty Schema"
+        x-amazon-apigateway-binary-media-types:
+          - "multipart/form-data"
+            
+  LambdaApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: Default deployment for wild Rydes API
+      RestApiId: !Ref LambdaApi
+      StageName: "default"         
+
+  LambdaFunctionPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - !Ref AWS::Region
+            - ":"
+            - !Ref AWS::AccountId
+            - ":"
+            - !Ref LambdaApi
+            - "/*"
+  ApiKey: 
+    Type: "AWS::ApiGateway::ApiKey"
+    Properties: 
+      Name: "lambda-api-key"
+      Description: "API Key for Lambda"
+      Enabled: true
+      
+  ApiKeyUsagePlan:
+    Type: "AWS::ApiGateway::UsagePlanKey"
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ApiUsagePlan
+
+  ApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: 
+      - "LambdaApiDeployment"
+    Properties:
+      Description: lambda api use plan
+      UsagePlanName: api-key-use-plan
+      ApiStages:
+      - ApiId: !Ref 'LambdaApi'
+        Stage: 'default'
+Outputs:
+  LambdaApiInvokeUrl:
+    Description: URL for the deployed API
+    Value:
+      Fn::Join:
+        - ""
+        - - "https://"
+          - !Ref LambdaApi
+          - ".execute-api."
+          - !Ref AWS::Region
+          - ".amazonaws.com/default/queryLambda"
+    Export:
+      Name: LambdaApiUrl
+      
+  ApplicationApiName:
+    Description: API Key Name
+    Value: "lambda-api-key"
+    Export:
+      Name: LambdaApiKeyName
+      
+  ApplicationApiId:
+    Description: API Key Id
+    Value: !Ref ApiKey
+    Export:
+      Name: LambdaApiKeyId
+      
